@@ -28,12 +28,16 @@ jobs:
             args: --release --features=bitaxe-max
           - command: build
             args: --release --features=bitaxe-ultra
+          - command: build
+            args: --release --features=bitaxe-gamma
           - command: fmt
             args: --all -- --check --color always
           - command: clippy
             args: --features=bitaxe-max --workspace -- -D warnings
           - command: clippy
             args: --features=bitaxe-ultra --workspace -- -D warnings
+          - command: clippy
+            args: --features=bitaxe-gamma --workspace -- -D warnings
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -51,7 +55,7 @@ jobs:
         run: cargo ${{ matrix.action.command }} ${{ matrix.action.args }}
 
   host-checks:
-    name: Host Checks (miner-core)
+    name: Host Checks (mining, power, AxeOS API)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -68,3 +72,26 @@ jobs:
         run: cargo clippy --all-targets --all-features -- -D warnings
       - name: Test
         run: cargo test
+
+  web-checks:
+    name: AxeOS Rust (WASM)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: axeos-web
+      - name: Format
+        run: cargo fmt --manifest-path axeos-web/Cargo.toml --all -- --check
+      - name: Test shared API contract and rendering
+        run: cargo test --locked --manifest-path axeos-web/Cargo.toml
+      - name: Clippy
+        run: cargo clippy --locked --manifest-path axeos-web/Cargo.toml --all-targets -- -D warnings
+      - name: Install WASM bindings tool
+        run: cargo install wasm-bindgen-cli --version 0.2.130 --locked
+      - name: Build embedded assets
+        run: python3 scripts/build-web.py

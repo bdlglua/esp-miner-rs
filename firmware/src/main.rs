@@ -6,6 +6,9 @@ mod board;
 mod io06;
 mod pool;
 mod power;
+mod settings;
+mod state;
+mod web;
 
 use defmt::{debug, error, info};
 use defmt_rtt as _;
@@ -50,15 +53,26 @@ const WIFI_PASSWORD: &str = env!("WIFI_PASSWORD");
 async fn main(spawner: Spawner) -> ! {
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
     let peripherals = esp_hal::init(config);
+    // Keep the ASIC in reset throughout power and sensor initialization.
+    let reset = Output::new(peripherals.GPIO1, Level::Low, OutputConfig::default());
 
     esp_alloc::heap_allocator!(size: 72 * 1024);
+    let defaults = axeos_core::Config::defaults(
+        WIFI_SSID,
+        WIFI_PASSWORD,
+        board::HASH_FREQ_MHZ as u16,
+        (board::VCORE * 1000.0) as u16,
+    );
+    let (store, config) =
+        settings::SettingsStore::load(esp_storage::FlashStorage::new(peripherals.FLASH), defaults);
+    state::initialize(config.clone(), store.available());
+    settings::initialize(store);
 
     let timg0 = TimerGroup::new(peripherals.TIMG0);
     esp_rtos::start(timg0.timer0, peripherals.FROM_CPU_INTR0);
 
-    // Power: DS4432 (core voltage), INA260 (input power) and EMC2101 (ASIC temperature, fan) on
-    // I2C0 (SDA GPIO47, SCL GPIO48). The regulator enable (PWR_EN, GPIO10) is active low: off
-    // until the power task has set the core voltage.
+    // Shared I2C0 (SDA GPIO47, SCL GPIO48): EMC2101 plus DS4432/INA260 on Max/Ultra,
+    // TPS546 on Gamma 601. Gamma controls power through PMBus, without GPIO10.
     static I2C_BUS: StaticCell<Mutex<NoopRawMutex, I2c<'_, esp_hal::Async>>> = StaticCell::new();
     let i2c = I2c::new(
         peripherals.I2C0,
@@ -69,17 +83,59 @@ async fn main(spawner: Spawner) -> ! {
     .with_scl(peripherals.GPIO48)
     .into_async();
     let i2c_bus = I2C_BUS.init(Mutex::new(i2c));
+    #[cfg(not(feature = "bitaxe-gamma"))]
     let ds4432 =
         ds4432::AsyncDS4432::with_rfs(I2cDevice::new(i2c_bus), Some(board::DS4432_RFS0_OHM), None)
             .unwrap();
-    let ina260 = ina260::AsyncINA260::new(I2cDevice::new(i2c_bus))
-        .await
-        .unwrap();
-    let emc2101 = emc2101::AsyncEMC2101::new(I2cDevice::new(i2c_bus))
-        .await
-        .unwrap();
+    #[cfg(not(feature = "bitaxe-gamma"))]
+    let ina260 = match ina260::AsyncINA260::new(I2cDevice::new(i2c_bus)).await {
+        Ok(monitor) => Some(monitor),
+        Err(_) => {
+            state::fault("Moniteur INA260 indisponible");
+            None
+        }
+    };
+    #[cfg(feature = "bitaxe-gamma")]
+    let mut regulator = gamma_power::Tps546::new(I2cDevice::new(i2c_bus));
+    #[cfg(feature = "bitaxe-gamma")]
+    {
+        Timer::after(Duration::from_millis(15)).await;
+        if regulator.disable().await.is_err() {
+            state::fault("Arrêt initial du TPS546 impossible");
+        }
+    }
+    // Gamma 601: BM1370 external diode calibration (EMC2101 registers 0x17/0x18).
+    #[cfg(feature = "bitaxe-gamma")]
+    {
+        let mut sensor_bus = I2cDevice::new(i2c_bus);
+        if embedded_hal_async::i2c::I2c::write(&mut sensor_bus, 0x4c, &[0x17, 0x24])
+            .await
+            .is_err()
+            || embedded_hal_async::i2c::I2c::write(&mut sensor_bus, 0x4c, &[0x18, 0x00])
+                .await
+                .is_err()
+        {
+            state::fault("Calibration de la diode BM1370 impossible");
+        }
+    }
+    let emc2101 = match emc2101::AsyncEMC2101::new(I2cDevice::new(i2c_bus)).await {
+        Ok(sensor) => Some(sensor),
+        Err(_) => {
+            state::fault("Capteur et contrôleur de ventilateur EMC2101 indisponible");
+            None
+        }
+    };
+    #[cfg(not(feature = "bitaxe-gamma"))]
     let asic_enable = Output::new(peripherals.GPIO10, Level::High, OutputConfig::default());
-    spawner.spawn(power::power_task(ds4432, ina260, emc2101, asic_enable).unwrap());
+    #[cfg(not(feature = "bitaxe-gamma"))]
+    if let (Some(monitor), Some(sensor)) = (ina260, emc2101) {
+        spawner.spawn(power::power_task(ds4432, monitor, sensor, asic_enable).unwrap());
+    }
+
+    #[cfg(feature = "bitaxe-gamma")]
+    if let Some(sensor) = emc2101 {
+        spawner.spawn(power::gamma_power_task(regulator, sensor).unwrap());
+    }
 
     // ASIC chain: UART1 (TX GPIO17, RX GPIO18), NRST on GPIO1 (active low).
     let uart_config = uart::Config::default().with_baudrate(115_200);
@@ -88,16 +144,19 @@ async fn main(spawner: Spawner) -> ! {
         .with_tx(peripherals.GPIO17)
         .with_rx(peripherals.GPIO18)
         .into_async();
-    let reset = Output::new(peripherals.GPIO1, Level::Low, OutputConfig::default());
     spawner.spawn(asic::asic_task(asic::AsicUart::new(uart, uart_config), reset).unwrap());
 
     // WiFi and network stack
     let station_config = Config::Station(
         StationConfig::default()
-            .with_ssid(WIFI_SSID.try_into().unwrap())
-            .with_authentication(AuthenticationMethodConfig::Wpa2Personal(
-                WIFI_PASSWORD.try_into().unwrap(),
-            )),
+            .with_ssid(config.ssid.as_str().try_into().unwrap())
+            .with_authentication(if config.wifi_password.is_empty() {
+                AuthenticationMethodConfig::Open
+            } else {
+                AuthenticationMethodConfig::Wpa2Personal(
+                    config.wifi_password.as_str().try_into().unwrap(),
+                )
+            }),
     );
     let wifi_interface = Interface::station();
     let controller = WifiController::new(
@@ -106,7 +165,9 @@ async fn main(spawner: Spawner) -> ! {
     )
     .unwrap();
 
-    let config = embassy_net::Config::dhcpv4(Default::default());
+    let mut dhcp = embassy_net::DhcpConfig::default();
+    dhcp.hostname = config.hostname.as_str().try_into().ok();
+    let config = embassy_net::Config::dhcpv4(dhcp);
 
     let rng = Rng::new();
     let seed = (rng.random() as u64) << 32 | rng.random() as u64;
@@ -114,12 +175,16 @@ async fn main(spawner: Spawner) -> ! {
     let (stack, runner) = embassy_net::new(
         wifi_interface,
         config,
-        mk_static!(StackResources<3>, StackResources::<3>::new()),
+        mk_static!(StackResources<6>, StackResources::<6>::new()),
         seed,
     );
 
     spawner.spawn(connection_task(controller).unwrap());
     spawner.spawn(net_task(runner).unwrap());
+
+    spawner.spawn(web::web_task(stack).unwrap());
+    spawner.spawn(web::web_task(stack).unwrap());
+    spawner.spawn(web::stats_task(stack).unwrap());
 
     // Pool session
     spawner.spawn(

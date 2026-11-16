@@ -57,6 +57,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
+name = "axeos-core"
+version = "0.1.0"
+dependencies = [
+ "heapless 0.8.0",
+ "serde",
+ "serde-json-core",
+]
+
+[[package]]
 name = "bitcoin_hashes"
 version = "0.14.101"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -127,7 +136,17 @@ dependencies = [
 [[package]]
 name = "bm1366"
 version = "0.3.0"
-source = "git+https://github.com/GPTechinno/bm13xx-rs?rev=422df6f1953d9fb95b5c4ab39d35b234c216d6de#422df6f1953d9fb95b5c4ab39d35b234c216d6de"
+dependencies = [
+ "bm13xx-asic",
+ "bm13xx-protocol",
+ "defmt 1.2.0",
+ "fugit 0.6.0",
+ "heapless 0.9.3",
+]
+
+[[package]]
+name = "bm1370"
+version = "0.3.0"
 dependencies = [
  "bm13xx-asic",
  "bm13xx-protocol",
@@ -139,7 +158,6 @@ dependencies = [
 [[package]]
 name = "bm1397"
 version = "0.3.0"
-source = "git+https://github.com/GPTechinno/bm13xx-rs?rev=422df6f1953d9fb95b5c4ab39d35b234c216d6de#422df6f1953d9fb95b5c4ab39d35b234c216d6de"
 dependencies = [
  "bm13xx-asic",
  "bm13xx-protocol",
@@ -151,7 +169,6 @@ dependencies = [
 [[package]]
 name = "bm13xx-asic"
 version = "0.3.0"
-source = "git+https://github.com/GPTechinno/bm13xx-rs?rev=422df6f1953d9fb95b5c4ab39d35b234c216d6de#422df6f1953d9fb95b5c4ab39d35b234c216d6de"
 dependencies = [
  "bm13xx-protocol",
  "defmt 1.2.0",
@@ -162,7 +179,6 @@ dependencies = [
 [[package]]
 name = "bm13xx-chain"
 version = "0.3.0"
-source = "git+https://github.com/GPTechinno/bm13xx-rs?rev=422df6f1953d9fb95b5c4ab39d35b234c216d6de#422df6f1953d9fb95b5c4ab39d35b234c216d6de"
 dependencies = [
  "bm13xx-asic",
  "bm13xx-protocol",
@@ -178,7 +194,6 @@ dependencies = [
 [[package]]
 name = "bm13xx-protocol"
 version = "0.3.0"
-source = "git+https://github.com/GPTechinno/bm13xx-rs?rev=422df6f1953d9fb95b5c4ab39d35b234c216d6de#422df6f1953d9fb95b5c4ab39d35b234c216d6de"
 dependencies = [
  "crc",
  "defmt 1.2.0",
@@ -1123,7 +1138,9 @@ checksum = "911aadae41ec99104efa865bd0b6e486b4b735999f9b571963748a46d16495ab"
 name = "esp-miner-rs"
 version = "0.1.0"
 dependencies = [
+ "axeos-core",
  "bm1366",
+ "bm1370",
  "bm1397",
  "bm13xx-chain",
  "bm13xx-protocol",
@@ -1150,10 +1167,14 @@ dependencies = [
  "esp-hal",
  "esp-radio",
  "esp-rtos",
+ "esp-storage",
  "fugit 0.6.0",
+ "gamma-power",
  "heapless 0.8.0",
  "ina260",
  "miner-core",
+ "serde",
+ "serde-json-core",
  "smoltcp",
  "static_cell",
  "stratum-v1",
@@ -1596,6 +1617,13 @@ dependencies = [
  "futures-core",
  "futures-task",
  "pin-project-lite",
+]
+
+[[package]]
+name = "gamma-power"
+version = "0.1.0"
+dependencies = [
+ "embedded-hal-async",
 ]
 
 [[package]]

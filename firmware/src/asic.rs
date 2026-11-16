@@ -111,16 +111,22 @@ impl embedded_hal::digital::OutputPin for NoBusy {
 pub async fn asic_task(mut uart: AsicUart, mut reset: Output<'static>) {
     POWER_READY.wait().await;
     loop {
-        let Err(e) = run_chain(&mut uart, &mut reset).await;
-        error!("ASIC chain error: {}", e);
-        Timer::after(RETRY_DELAY).await;
+        while crate::state::should_pause() {
+            Timer::after_millis(100).await;
+        }
+        if let Err(e) = run_chain(&mut uart, &mut reset).await {
+            error!("ASIC chain error: {}", e);
+            crate::state::with(|s| {
+                s.telemetry.hash_rate = None;
+                s.telemetry.expected_hashrate = None;
+            });
+            crate::state::log("error", format_args!("Chaîne ASIC : {:?}", e));
+            Timer::after(RETRY_DELAY).await;
+        }
     }
 }
 
-async fn run_chain(
-    uart: &mut AsicUart,
-    reset: &mut Output<'static>,
-) -> Result<Infallible, ChainError> {
+async fn run_chain(uart: &mut AsicUart, reset: &mut Output<'static>) -> Result<(), ChainError> {
     // Start from reset chips at their default baudrate, also after a chain error.
     // `enumerate` releases the reset.
     reset.set_low();
@@ -132,7 +138,9 @@ async fn run_chain(
     chain.change_baudrate(board::ASIC_BAUDRATE).await?;
     chain.reset_all_cores().await?;
     chain
-        .set_hash_freq(HertzU64::MHz(board::HASH_FREQ_MHZ))
+        .set_hash_freq(HertzU64::MHz(crate::state::with(|s| {
+            s.active.frequency as u64
+        })))
         .await?;
     if board::HW_VERSION_ROLLING {
         chain.enable_version_rolling(VERSION_MASK_REQUEST).await?;
@@ -149,9 +157,29 @@ async fn run_chain(
         job_interval.as_millis()
     );
 
+    crate::state::mining_started(chain.theoretical_hashrate_ghs());
+    crate::state::log(
+        "info",
+        format_args!(
+            "{} ASIC, {} GH/s théoriques",
+            chain.asic_cnt,
+            chain.theoretical_hashrate_ghs()
+        ),
+    );
     let mut book = JobBook::<JOB_IDS>::new();
     let mut next_job = Instant::now();
     loop {
+        if crate::state::should_pause() {
+            chain.reset().await?;
+            crate::state::with(|s| {
+                s.telemetry.hash_rate = None;
+                s.mining_started = None;
+            });
+            crate::pool::JOBS.clear();
+            crate::pool::SHARES.clear();
+            crate::state::log("info", format_args!("Chaîne ASIC en reset"));
+            return Ok(());
+        }
         while let Some(resp) = chain.poll_response().await? {
             handle_response(&book, resp);
         }
@@ -195,6 +223,10 @@ fn handle_response(book: &JobBook<JOB_IDS>, resp: ResponseType) {
     };
     let checked = check_nonce(job, nonce, version_bits, VERSION_MASK.lock(Cell::get));
     let pool_difficulty = POOL_DIFFICULTY.lock(Cell::get);
+    crate::state::nonce(
+        checked.difficulty >= board::ASIC_DIFFICULTY as f64,
+        checked.difficulty,
+    );
     if checked.difficulty < board::ASIC_DIFFICULTY as f64 {
         // the chips only report nonces above their ticket mask
         warn!(

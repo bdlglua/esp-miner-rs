@@ -1,6 +1,6 @@
 //! Stratum v1 pool session: owns the client, hands jobs to the ASIC task and submits its shares.
 
-use core::{cell::Cell, convert::Infallible, net::Ipv4Addr, str::FromStr};
+use core::{cell::Cell, convert::Infallible, str::FromStr};
 
 use defmt::{error, info, Debug2Format};
 use embassy_futures::select::select;
@@ -36,9 +36,6 @@ pub static VERSION_MASK: Mutex<CriticalSectionRawMutex, Cell<u32>> =
 /// Version rolling mask asked to the pool, and enabled in the chips.
 pub const VERSION_MASK_REQUEST: u32 = 0x1fff_e000;
 
-const POOL_ADDR: (Ipv4Addr, u16) = (Ipv4Addr::new(68, 235, 52, 36), 21496); // public-pool
-const POOL_USER: &str = "1HLQGxzAQWnLore3fWHc2W8UP1CgMv1GKQ.miner1";
-const POOL_PASS: &str = "x";
 const CLIENT_NAME: &str = "esp-miner-rs";
 const MINIMUM_DIFFICULTY: u32 = 256;
 
@@ -53,12 +50,14 @@ type StratumClient<'a> = Client<Io06<TcpSocket<'a>>, 1480, 512>;
 
 enum SessionError {
     Connect(ConnectError),
+    Dns,
     Stratum(stratum_v1::Error),
 }
 
 impl defmt::Format for SessionError {
     fn format(&self, fmt: defmt::Formatter) {
         match self {
+            Self::Dns => defmt::write!(fmt, "pool DNS lookup failed"),
             Self::Connect(e) => defmt::write!(fmt, "connect error: {}", e),
             // stratum-v1 0.1 can't be built with defmt
             Self::Stratum(e) => defmt::write!(fmt, "stratum error: {}", Debug2Format(e)),
@@ -79,10 +78,21 @@ pub async fn pool_task(
     rx_buf: &'static mut [u8; 1536],
     tx_buf: &'static mut [u8; 1536],
 ) {
+    if crate::state::with(|s| s.active.pool_user.is_empty()) {
+        crate::state::log(
+            "warn",
+            format_args!("Configurer le worker dans AxeOS, puis redémarrer"),
+        );
+        loop {
+            Timer::after_secs(60).await;
+        }
+    }
     loop {
+        crate::state::with(|s| s.telemetry.pool_connected = false);
         stack.wait_config_up().await;
         let Err(e) = session(stack, &mut rx_buf[..], &mut tx_buf[..]).await;
         error!("pool session ended: {}", e);
+        crate::state::log("warn", format_args!("Connexion au pool interrompue"));
         // jobs and shares of the old session are stale
         JOBS.clear();
         SHARES.clear();
@@ -98,12 +108,18 @@ async fn session(
     rx_buf: &mut [u8],
     tx_buf: &mut [u8],
 ) -> Result<Infallible, SessionError> {
+    let config = crate::state::with(|s| s.active.clone());
+    let addresses = stack
+        .dns_query(config.pool_host.as_str(), embassy_net::dns::DnsQueryType::A)
+        .await
+        .map_err(|_| SessionError::Dns)?;
+    let address = *addresses.first().ok_or(SessionError::Dns)?;
     let mut socket = TcpSocket::new(stack, rx_buf, tx_buf);
     socket.set_timeout(Some(SOCKET_TIMEOUT));
     socket.set_keep_alive(Some(SOCKET_KEEP_ALIVE));
     info!("connecting to pool...");
     socket
-        .connect(POOL_ADDR)
+        .connect((address, config.pool_port))
         .await
         .map_err(SessionError::Connect)?;
     info!("connected!");
@@ -123,11 +139,12 @@ async fn session(
         .await?;
 
     let mut authorized = false;
+    let mut share_counts = (0u64, 0u64);
     loop {
         let mut busy = false;
         if let Some(msg) = client.poll_message().await? {
             busy = true;
-            handle_message(&mut client, msg, &mut authorized).await?;
+            handle_message(&mut client, msg, &mut authorized, &mut share_counts).await?;
         }
         if authorized {
             while let Ok(share) = SHARES.try_receive() {
@@ -169,6 +186,7 @@ async fn handle_message(
     client: &mut StratumClient<'_>,
     msg: Message,
     authorized: &mut bool,
+    share_counts: &mut (u64, u64),
 ) -> Result<(), SessionError> {
     match msg {
         Message::Configured => {
@@ -177,19 +195,36 @@ async fn handle_message(
                 .await?
         }
         Message::Connected => {
+            let config = crate::state::with(|s| s.active.clone());
             client
                 .send_authorize(
-                    String::from_str(POOL_USER).unwrap(),
-                    String::from_str(POOL_PASS).unwrap(),
+                    String::from_str(config.pool_user.as_str()).unwrap(),
+                    String::from_str(config.pool_password.as_str()).unwrap(),
                 )
                 .await?
         }
-        Message::Authorized => *authorized = true,
+        Message::Authorized => {
+            *authorized = true;
+            crate::state::with(|s| s.telemetry.pool_connected = true);
+            crate::state::log("info", format_args!("Worker autorisé par le pool"));
+        }
         Message::Share { accepted, rejected } => {
-            info!("shares accepted: {}, rejected: {}", accepted, rejected)
+            info!("shares accepted: {}, rejected: {}", accepted, rejected);
+            crate::state::with(|s| {
+                s.telemetry.shares_accepted += accepted.saturating_sub(share_counts.0);
+                s.telemetry.shares_rejected += rejected.saturating_sub(share_counts.1);
+            });
+            *share_counts = (accepted, rejected);
+            crate::state::log(
+                "info",
+                format_args!("Shares acceptées {}, rejetées {}", accepted, rejected),
+            );
         }
         Message::VersionMask(mask) => VERSION_MASK.lock(|m| m.set(mask)),
-        Message::Difficulty(diff) => POOL_DIFFICULTY.lock(|d| d.set(diff)),
+        Message::Difficulty(diff) => {
+            POOL_DIFFICULTY.lock(|d| d.set(diff));
+            crate::state::with(|s| s.telemetry.pool_difficulty = diff);
+        }
         Message::CleanJobs => {
             // the new work is already in the client: the jobs rolled next use it
             JOBS.clear();

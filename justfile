@@ -11,3 +11,7 @@ run b:
 
 test:
   cargo test
+
+# Requires wasm-bindgen-cli; prebuilt web assets are already included.
+web:
+  python scripts/build-web.py

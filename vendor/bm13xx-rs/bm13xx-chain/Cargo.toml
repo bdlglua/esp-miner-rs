@@ -1,0 +1,45 @@
+[package]
+categories = ["embedded", "no-std"]
+edition = "2021"
+name = "bm13xx-chain"
+rust-version = "1.87.0"
+version = "0.3.0"
+
+[dependencies]
+bm13xx-asic = { path = "../bm13xx-asic" }
+bm13xx-protocol = { path = "../bm13xx-protocol" }
+
+defmt = { workspace = true, optional = true }
+derive_more = { workspace = true, features = ["from"] }
+embedded-hal = { workspace = true }
+embedded-hal-async = { workspace = true }
+embedded-io-async = { workspace = true }
+fugit = { workspace = true }
+heapless = { workspace = true }
+log = { workspace = true, optional = true }
+
+[features]
+defmt = [
+    "dep:defmt",
+    "bm13xx-asic/defmt",
+    "bm13xx-protocol/defmt",
+    "embedded-hal/defmt-03",
+    "embedded-hal-async/defmt-03",
+    "embedded-io-async/defmt",
+    "fugit/defmt",
+    "heapless/defmt",
+]
+
+[dev-dependencies]
+bm1366 = { path = "../bm1366" }
+
+embedded-io = { version = "0.7", features = ["std"] }
+env_logger = "0.11"
+inquire = "0.9"
+linux-embedded-hal = "0.5"
+tokio = { version = "1.54", features = ["macros", "time", "rt-multi-thread"] }
+tokio-serial = "5.5"
+
+[[example]]
+name = "bm13xx-cli"
+path = "examples/cli.rs"
