@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Build the unmodified official AxeOS UI; --demo selects its mock environment."""
-import argparse,copy,json,os,subprocess,sys
+import argparse,copy,json,os,shutil,subprocess,sys
 from pathlib import Path
 root=Path(__file__).resolve().parents[1]
 web=root/'web/axeos'
@@ -22,8 +22,13 @@ try:
   configs['visual-demo']['fileReplacements']=[{'replace':'src/environments/environment.ts','with':'src/environments/environment.mock.ts'}]
   config.write_text(json.dumps(data,indent=2)+'\n')
   mode='visual-demo'
- subprocess.run([npm,'exec','--','ng','build','--configuration',mode],cwd=web,env=env,check=True)
+ subprocess.run([npm,'exec','--','ng','build','--configuration',mode,'--extract-licenses'],cwd=web,env=env,check=True)
 finally:
  config.write_bytes(original)
+shutil.copyfile(root/'web/LICENSE-ESP-Miner',web/'dist/axe-os/LICENSE-ESP-Miner.txt')
+(web/'dist/axe-os/axeos-build.json').write_text(json.dumps({'mock':args.demo,'revision':json.loads((root/'docs/upstream.json').read_text())['axeos']['revision']},indent=2)+'\n')
 print('Fichiers générés dans web/axeos/dist/axe-os/')
-print('L’API officielle reste à raccorder au serveur Rust ; ces fichiers ne remplacent pas automatiquement les ressources du firmware.')
+if not args.demo:
+ subprocess.run([sys.executable,str(root/'scripts/embed-axeos.py')],check=True)
+else:
+ print('Démonstration mock : les ressources du firmware ne sont pas remplacées.')

@@ -175,13 +175,15 @@ async fn main(spawner: Spawner) -> ! {
     let (stack, runner) = embassy_net::new(
         wifi_interface,
         config,
-        mk_static!(StackResources<6>, StackResources::<6>::new()),
+        mk_static!(StackResources<8>, StackResources::<8>::new()),
         seed,
     );
 
     spawner.spawn(connection_task(controller).unwrap());
     spawner.spawn(net_task(runner).unwrap());
 
+    spawner.spawn(web::web_task(stack).unwrap());
+    spawner.spawn(web::web_task(stack).unwrap());
     spawner.spawn(web::web_task(stack).unwrap());
     spawner.spawn(web::web_task(stack).unwrap());
     spawner.spawn(web::stats_task(stack).unwrap());

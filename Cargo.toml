@@ -3,4 +3,4 @@ resolver = "2"
 members = ["crates/miner-core", "crates/gamma-power", "crates/axeos-core"]
 # The firmware targets xtensa-esp32s3-none-elf with build-std (see firmware/.cargo/config.toml),
 # so it is built from its own directory, outside of this host workspace.
-exclude = ["firmware", "vendor/bm13xx-rs", "web/embedded-rust"]
+exclude = ["firmware", "vendor/bm13xx-rs"]

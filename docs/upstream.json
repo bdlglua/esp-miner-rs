@@ -4,7 +4,7 @@
     "revision": "e3cfbb3b124585cf5e45a4d4842422cccee69b72",
     "source": "main/http_server/axe-os",
     "license": "GPL-3.0",
-    "note": "UI sources unchanged; node_modules, generated API clients, IDE files and build outputs omitted"
+    "note": "UI sources unchanged; production assets embedded by Rust adapter; third-party license extraction enabled at build time"
   },
   "bm13xx": {
     "source_archive": "bm13xx-rs-main.zip",

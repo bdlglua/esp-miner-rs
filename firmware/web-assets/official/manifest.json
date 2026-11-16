@@ -1,0 +1,92 @@
+{
+  "/3rdpartylicenses.txt": {
+    "sha256": "dc31108099ed58d3eda6475aacc8e0eed73c886b8c4cb2fff309d7c220c7ef60",
+    "bytes": 27920,
+    "gzip": 5301,
+    "mime": "text/plain"
+  },
+  "/LICENSE-ESP-Miner.txt": {
+    "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+    "bytes": 35149,
+    "gzip": 12124,
+    "mime": "text/plain"
+  },
+  "/assets/fonts/Nippo-Regular.woff2": {
+    "sha256": "0d0d7e4a532cb2c1ae36a51091aceec6ad99864d7d3f77ba9469172185b87011",
+    "bytes": 15884,
+    "gzip": 15907,
+    "mime": "font/woff2"
+  },
+  "/assets/fonts/primeicons.woff2": {
+    "sha256": "9eea6e0bcb974ec568fdcb1eec182d3b5383a3a23899a690140b2c0167886882",
+    "bytes": 35148,
+    "gzip": 35171,
+    "mime": "font/woff2"
+  },
+  "/assets/share-rejection-explanations.json": {
+    "sha256": "a97594c2d68d8f483168f3974029243c47a2301977d9f5a52386b1a072e9f7f1",
+    "bytes": 3561,
+    "gzip": 1020,
+    "mime": "application/json"
+  },
+  "/axeos-build.json": {
+    "sha256": "6d3ffdb5c30305b33d73b4e5bb6c77a72e5be2d21c86492f94bdc7f1827802d9",
+    "bytes": 78,
+    "gzip": 94,
+    "mime": "application/json"
+  },
+  "/bitcoin.pdf": {
+    "sha256": "b1674191a88ec5cdd733e4240a81803105dc412d6c6708d53ab94fc248f4f553",
+    "bytes": 184292,
+    "gzip": 178548,
+    "mime": "application/pdf"
+  },
+  "/chunk-D4F3O5N6.js": {
+    "sha256": "01c005f07c05cdb0df96950b0655594fe94385a02733596a6af1722279b33ba3",
+    "bytes": 49952,
+    "gzip": 16017,
+    "mime": "text/javascript"
+  },
+  "/chunk-SBVJNYEZ.js": {
+    "sha256": "79574cbdc5cff51168f045ba103629b026ecd7a3f047b29dbce8eeacbf9265f0",
+    "bytes": 4289,
+    "gzip": 1876,
+    "mime": "text/javascript"
+  },
+  "/favicon.ico": {
+    "sha256": "871b016919ea4fa964821f22894bf4c621b7876ca8a98ac4d32b4034d8c478d3",
+    "bytes": 19518,
+    "gzip": 1522,
+    "mime": "image/vnd.microsoft.icon"
+  },
+  "/": {
+    "sha256": "120a357049a2277491010072ccb09435d1e3e153df88cd3a0161fe92be6aa689",
+    "bytes": 708,
+    "gzip": 390,
+    "mime": "text/html"
+  },
+  "/main-SIHT43QV.js": {
+    "sha256": "2f45daaf8923725c2e717522066cac34d2561c0afaae7a96b8e775c05f6f405a",
+    "bytes": 1008088,
+    "gzip": 301686,
+    "mime": "text/javascript"
+  },
+  "/polyfills-I4YUW66T.js": {
+    "sha256": "e58411db71b908616c5c212d2373e7b5ab79055c7987e0836e64b259da72507f",
+    "bytes": 34579,
+    "gzip": 12395,
+    "mime": "text/javascript"
+  },
+  "/prerendered-routes.json": {
+    "sha256": "a79ddcc8a115190e9c19479ed36914741a7d1db74f0a1153529efc80725505fe",
+    "bytes": 18,
+    "gzip": 38,
+    "mime": "application/json"
+  },
+  "/styles-HIVEN6F7.css": {
+    "sha256": "0295ec31cc2747e131b58791cec9d8e94c06c0613193b37064cc1a0bb205b99b",
+    "bytes": 64071,
+    "gzip": 14168,
+    "mime": "text/css"
+  }
+}

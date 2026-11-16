@@ -4,6 +4,7 @@ pub enum Method {
     Get,
     Post,
     Patch,
+    Delete,
 }
 #[derive(Debug, PartialEq)]
 pub enum Error {
@@ -17,6 +18,8 @@ pub struct Request<'a> {
     pub path: &'a str,
     pub body: &'a [u8],
     pub host: &'a str,
+    pub query: &'a str,
+    pub websocket_key: Option<&'a str>,
 }
 pub const MAX_HEADER: usize = 1024;
 pub const MAX_BODY: usize = 2048;
@@ -39,6 +42,7 @@ pub fn parse(data: &[u8]) -> Result<Option<Request<'_>>, Error> {
         Some("GET") => Method::Get,
         Some("POST") => Method::Post,
         Some("PATCH") => Method::Patch,
+        Some("DELETE") => Method::Delete,
         _ => return Err(Error::Malformed),
     };
     let path = first
@@ -52,12 +56,30 @@ pub fn parse(data: &[u8]) -> Result<Option<Request<'_>>, Error> {
     let mut host = None;
     let mut origin = None;
     let mut json = false;
+    let mut content_type = false;
+    let mut ws_key = None;
+    let mut ws_version = None;
+    let mut ws_upgrade = false;
+    let mut ws_connection = false;
     for line in lines {
         let (key, value) = line.split_once(':').ok_or(Error::Malformed)?;
         if key.is_empty() || !key.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-') {
             return Err(Error::Malformed);
         }
         let value = value.trim();
+        if key.eq_ignore_ascii_case("sec-websocket-key") {
+            if ws_key.replace(value).is_some() {
+                return Err(Error::Malformed);
+            }
+        } else if key.eq_ignore_ascii_case("sec-websocket-version") {
+            ws_version = Some(value);
+        } else if key.eq_ignore_ascii_case("upgrade") {
+            ws_upgrade = value.eq_ignore_ascii_case("websocket");
+        } else if key.eq_ignore_ascii_case("connection") {
+            ws_connection = value
+                .split(',')
+                .any(|v| v.trim().eq_ignore_ascii_case("upgrade"));
+        }
         if value.bytes().any(|b| b < 0x20 || b == 0x7f) {
             return Err(Error::Malformed);
         }
@@ -82,6 +104,7 @@ pub fn parse(data: &[u8]) -> Result<Option<Request<'_>>, Error> {
                 return Err(Error::Malformed);
             }
         } else if key.eq_ignore_ascii_case("content-type") {
+            content_type = true;
             json = value
                 .split(';')
                 .next()
@@ -90,7 +113,7 @@ pub fn parse(data: &[u8]) -> Result<Option<Request<'_>>, Error> {
     }
     let host = host.ok_or(Error::Malformed)?;
     if method != Method::Get {
-        if !json {
+        if !json && (content_type || length.unwrap_or(0) > 0) {
             return Err(Error::UnsupportedMedia);
         }
         if let Some(origin) = origin {
@@ -102,6 +125,23 @@ pub fn parse(data: &[u8]) -> Result<Option<Request<'_>>, Error> {
         }
     }
     let length = length.unwrap_or(0);
+    if ws_key.is_some()
+        && (method != Method::Get
+            || ws_version != Some("13")
+            || !ws_upgrade
+            || !ws_connection
+            || length != 0)
+    {
+        return Err(Error::Malformed);
+    }
+    // WebSocket upgrades must also come from the same origin.
+    if ws_key.is_some()
+        && origin.is_some_and(|v| {
+            v.strip_prefix("http://") != Some(host) && v.strip_prefix("https://") != Some(host)
+        })
+    {
+        return Err(Error::Forbidden);
+    }
     if data.len() < end + 4 + length {
         return Ok(None);
     }
@@ -113,6 +153,8 @@ pub fn parse(data: &[u8]) -> Result<Option<Request<'_>>, Error> {
         path: path.split('?').next().unwrap_or(path),
         body: &data[end + 4..],
         host,
+        query: path.split_once('?').map_or("", |(_, query)| query),
+        websocket_key: ws_key,
     }))
 }
 

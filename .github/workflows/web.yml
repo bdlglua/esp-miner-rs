@@ -19,3 +19,5 @@ jobs:
         run: python scripts/build-axeos.py --demo
       - name: Build official production UI
         run: python scripts/build-axeos.py
+      - name: Verify embedded production assets
+        run: python scripts/check-axeos.py

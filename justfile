@@ -11,6 +11,3 @@ web:
 
 web-demo:
   python scripts/build-axeos.py --demo
-
-embedded-web:
-  python scripts/build-embedded-web.py

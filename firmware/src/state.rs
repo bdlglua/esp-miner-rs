@@ -11,6 +11,8 @@ pub struct Runtime {
     pub telemetry: Telemetry,
     pub history: History,
     pub logs: Logs,
+    pub log_sequence: u64,
+    pub streaming_clients: u8,
     pub ip: String<16>,
     pub wifi_connected: bool,
     pub storage_available: bool,
@@ -30,6 +32,8 @@ pub fn initialize(config: Config, storage_available: bool) {
             telemetry: Telemetry::default(),
             history: History::new(),
             logs: Logs::new(),
+            log_sequence: 0,
+            streaming_clients: 0,
             ip: String::new(),
             wifi_connected: false,
             storage_available,
@@ -62,6 +66,7 @@ pub fn log(level: &str, args: core::fmt::Arguments<'_>) {
             s.logs.remove(0);
         }
         let _ = s.logs.push(entry);
+        s.log_sequence = s.log_sequence.wrapping_add(1);
     });
 }
 pub fn fault(message: &str) {

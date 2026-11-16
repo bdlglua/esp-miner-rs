@@ -1,7 +1,9 @@
-//! Shared, bounded data model and transport helpers for the embedded AxeOS Rust interface.
+//! Bounded configuration, telemetry and transport adapters for the official AxeOS interface.
 #![no_std]
 pub mod http;
+pub mod official;
 pub mod storage;
+pub mod websocket;
 use heapless::{String, Vec};
 use serde::{Deserialize, Serialize};
 

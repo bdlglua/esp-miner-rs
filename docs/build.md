@@ -1,10 +1,10 @@
 # Compilation et installation
 
-## Firmware Rust
+## Firmware Gamma 601
 
-Installer Rust, espup et espflash. Installer la cible ESP32-S3 avec `espup install -t esp32s3`, puis charger le fichier d’environnement indiqué par espup.
+Installer Rust, espup et espflash. Installer la cible avec `espup install -t esp32s3`, puis charger le fichier d’environnement indiqué par espup.
 
-Depuis la racine du dépôt :
+Les ressources AxeOS officielles de production sont déjà incluses : Node.js n’est pas nécessaire pour compiler le ZIP fourni.
 
 ```bash
 cd firmware
@@ -12,28 +12,42 @@ WIFI_SSID="votre_reseau" WIFI_PASSWORD="votre_mot_de_passe" \
   cargo build --locked --release --features=bitaxe-gamma
 ```
 
-Les identifiants sont des variables de compilation, pas un fichier à publier sur GitHub. Pour Max ou Ultra, remplacer la feature par `bitaxe-max` ou `bitaxe-ultra`.
+Pour Max ou Ultra, remplacer la feature par `bitaxe-max` ou `bitaxe-ultra`. Les identifiants Wi-Fi initiaux sont des variables de compilation ; ne pas publier de fichier contenant vos mots de passe.
 
-La première installation du serveur web Rust nécessite la table de partitions fournie :
+Installer par USB avec la table de partitions fournie :
 
 ```bash
 espflash flash --partition-table partitions.csv \
   target/xtensa-esp32s3-none-elf/release/esp-miner-rs
 ```
 
-Après le démarrage, utiliser l’adresse IP indiquée par les logs RTT ou par les baux DHCP du routeur. Le firmware utilise encore l’interface Rust interne, **pas** l’application Angular officielle. Lire [status.md](status.md).
+Ouvrir `http://IP_DE_LA_CARTE/`, en utilisant l’IPv4 DHCP donnée par votre routeur. Vous obtenez la véritable interface AxeOS, avec l’API Rust. Configurer le worker et le pool, enregistrer puis redémarrer. Les essais sur carte physique restent à faire ; lire [status.md](status.md).
 
-Pour réinitialiser les réglages persistants sans effacer l’application :
+Pour effacer uniquement les réglages persistants :
 
 ```bash
 espflash erase-region 0x9000 0x2000
 ```
 
-Les réglages du réseau, du pool et du matériel sont alors effacés. Au prochain démarrage, le Wi-Fi de compilation est réutilisé.
+Cette commande efface les réglages réseau/pool/matériel. Le prochain démarrage reprend les valeurs de compilation.
 
-## AxeOS officiel : aperçu visuel
+## Reconstruire AxeOS officiel
 
-Node.js 22+ est nécessaire. Depuis la racine :
+Node.js 22+ et Python 3.11+ sont nécessaires. Depuis la racine :
+
+```bash
+cd web/axeos
+npm ci
+cd ../..
+python3 scripts/build-axeos.py
+python3 scripts/check-axeos.py
+```
+
+Le script génère le client OpenAPI, compile Angular en production, conserve les notices de licence, puis reconstruit `firmware/web-assets/official/`. Recompiler ensuite le firmware pour y inclure les nouvelles ressources.
+
+Les sources de l’interface n’ont pas été réécrites. La construction active l’extraction des licences tierces. Un manifeste identifie le mode de compilation ; l’outil d’intégration refuse une application mock.
+
+## Aperçu visuel sur ordinateur
 
 ```bash
 cd web/axeos
@@ -42,36 +56,40 @@ npm run generate:api
 npm start
 ```
 
-Ouvrir http://localhost:4200. Cette commande utilise le mode mock officiel, sans périphérique réel. Les styles, écrans, icônes et polices proviennent du dépôt amont.
-
-Pour un paquet statique de démonstration :
+Ouvrir http://localhost:4200. Il s’agit du mode mock officiel, avec des données fictives. Pour un aperçu statique depuis la racine :
 
 ```bash
-python scripts/build-axeos.py --demo
-python -m http.server 8080 --directory web/axeos/dist/axe-os
+python3 scripts/build-axeos.py --demo
+python3 -m http.server 8080 --directory web/axeos/dist/axe-os
 ```
 
-Ouvrir http://localhost:8080. Le routage Angular utilise les fragments `#/...`.
+Ouvrir http://localhost:8080. Le routage utilise les fragments `#/...`. `--demo` laisse les ressources de production embarquées intactes.
 
-La compilation sans `--demo` sélectionne la configuration de production et l’API réelle d’ESP-Miner. Elle ne rend pas le serveur Rust compatible à elle seule.
-
-## Client Rust interne
-
-Cette interface est conservée pour garder le firmware existant compilable. Ce n’est pas l’interface officielle AxeOS.
-
-Les ressources déjà compilées sont incluses dans `firmware/web-assets/`. Pour les reconstruire : installer Python 3.11+, la cible `wasm32-unknown-unknown` et wasm-bindgen-cli à la version de `web/embedded-rust/Cargo.lock`, puis :
-
-```bash
-python scripts/build-embedded-web.py
-```
-
-## Tests
+## Vérifications
 
 ```bash
 cargo test --locked
 cargo clippy --locked --all-targets --all-features -- -D warnings
 cargo fmt --all -- --check
-cargo test --locked --manifest-path web/embedded-rust/Cargo.toml --all-features
+cargo fmt --manifest-path firmware/Cargo.toml --all -- --check
+python3 scripts/check-axeos.py
 ```
 
-La compilation et les tests sur ordinateur ne remplacent pas la validation sur une carte réelle.
+Depuis `firmware/`, avec la chaîne Xtensa configurée :
+
+```bash
+WIFI_SSID="TestSSID" WIFI_PASSWORD="TestPASSWORD" \
+  cargo clippy --locked --release --features=bitaxe-gamma -- -D warnings
+```
+
+Les tests de l’adaptateur utilisent les champs obligatoires du vrai contrat OpenAPI et des formulaires officiels. Ils vérifient les unités, secrets, limites, réglages incompatibles, colonnes des graphiques et échanges WebSocket. Ils ne remplacent pas un essai sur une Gamma réelle.
+
+## Mettre à jour votre dépôt GitHub depuis le ZIP
+
+Extraire le nouveau ZIP dans un dossier neuf. Depuis ce dossier, exécuter :
+
+```bash
+python3 scripts/prepare-github.py /home/esp-miner-rs-github
+```
+
+Le script vérifie tous les fichiers contre le manifeste SHA-256, lit l’URL et l’identité Git de votre dépôt existant, puis prépare un commit dans une **nouvelle copie**. Il n’efface rien dans votre dossier actuel et ne pousse rien automatiquement. Il affiche la commande exacte pour examiner le commit puis l’envoyer sur GitHub, sans `sudo` ni push forcé.
