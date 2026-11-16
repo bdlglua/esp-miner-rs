@@ -1,41 +1,60 @@
-# ESP-Miner-rs · Bitaxe Gamma 601 + AxeOS officiel
+# ESP-Miner-rs
 
-Firmware Rust pour ESP32-S3 avec pilote BM1370, alimentation Gamma 601 et **véritable interface officielle AxeOS** embarquée. Les écrans Angular d’ESP-Miner sont conservés ; leur API est adaptée côté Rust.
+Firmware Rust pour **Bitaxe Gamma 601 / BM1370**, avec l’interface officielle **AxeOS** embarquée sur l’ESP32-S3.
 
-Tableau de bord, mesures, historique, réglages réseau/pool/matériel, pause/reprise, redémarrage et journaux sont raccordés. L’intégration compile et dispose de tests sur ordinateur ; **la validation sur une Gamma physique reste à effectuer**. Certaines fonctions d’ESP-Miner restent absentes, notamment OTA, OLED, NTP, SV2 et pools multiples : consulter [l’état précis](docs/status.md).
+Le navigateur charge l’application Angular d’[ESP-Miner](https://github.com/bitaxeorg/ESP-Miner). Le firmware et l’adaptateur de son API sont écrits en Rust ; les écrans et les styles officiels sont conservés.
 
-## Organisation
+> **État du projet :** compilation et tests sur ordinateur effectués. La validation du firmware sur une Gamma physique reste à réaliser.
 
-```text
-firmware/             Firmware ESP32-S3 et ressources AxeOS de production
-crates/               Minage, alimentation Gamma, modèles et adaptateur API
-web/axeos/            Sources Angular officielles AxeOS
-web/openapi.yaml      Contrat API officiel d’ESP-Miner
-vendor/bm13xx-rs/     Pilotes ASIC de l’archive fournie
-scripts/              Compilation, vérification, ZIP et import GitHub sécurisé
-docs/                 Installation, API, limitations et provenance
-.github/workflows/    Vérifications Rust et compilation d’AxeOS
-```
+## Fonctions disponibles
 
-## Compiler et installer sur Gamma 601
+- Pilote BM1370 et gestion de l’alimentation TPS546 sur Gamma 601.
+- Mesures et ventilation avec l’EMC2101, protection thermique et arrêt en cas de défaut.
+- Minage avec un pool Stratum V1 TCP.
+- Tableau de bord AxeOS, historique des mesures et réglages persistants.
+- Configuration du Wi-Fi, du pool, du worker, de la fréquence, de la tension et du ventilateur.
+- Pause, reprise, redémarrage et journaux par WebSocket.
+- Ressources web compressées, servies directement depuis la mémoire flash.
 
-Installer la chaîne ESP32-S3 avec espup et charger son fichier d’environnement. Les ressources officielles sont déjà incluses : Node.js n’est pas nécessaire pour compiler le firmware livré.
+Les valeurs par défaut de la Gamma 601 sont **525 MHz** et **1 150 mV**. Les limites de configuration sont détaillées dans [l’état de l’intégration](docs/status.md).
+
+## Compiler et installer
+
+### Prérequis
+
+- Une chaîne Rust pour ESP32-S3 installée avec **espup**, avec son fichier d’environnement chargé.
+- **espflash** pour installer le firmware par USB.
+
+Les ressources AxeOS de production sont déjà incluses dans le dépôt. Node.js est nécessaire uniquement pour reconstruire l’interface ou lancer son aperçu sur ordinateur.
+
+### Compilation pour Gamma 601
 
 ```bash
-cd firmware
+git clone https://github.com/bdlglua/esp-miner-rs.git
+cd esp-miner-rs/firmware
+
 WIFI_SSID="votre_reseau" WIFI_PASSWORD="votre_mot_de_passe" \
   cargo build --locked --release --features=bitaxe-gamma
+```
+
+### Installation par USB
+
+Depuis le dossier `firmware/` :
+
+```bash
 espflash flash --partition-table partitions.csv \
   target/xtensa-esp32s3-none-elf/release/esp-miner-rs
 ```
 
-Ouvrir `http://IP_DE_LA_CARTE/` avec son IPv4 DHCP. Configurer le worker/pool et redémarrer. Les variantes Max et Ultra restent disponibles, avec une seule feature sélectionnée.
+Après le démarrage, retrouvez l’adresse IPv4 de la carte dans les baux DHCP de votre routeur, puis ouvrez `http://IP_DE_LA_CARTE/`. Configurez votre pool et votre worker dans AxeOS, enregistrez puis redémarrez.
 
-Lire [le guide de compilation](docs/build.md), [l’adaptateur API](docs/axeos-api.md) et [les limitations](docs/status.md) avant l’essai sur carte.
+Les réglages réseau, pool, fréquence et tension prennent effet après redémarrage. Le Wi-Fi de compilation sert à la configuration initiale.
 
-## Tester visuellement l’interface officielle
+Les variantes `bitaxe-ultra` et `bitaxe-max` sont également présentes. Sélectionnez une seule variante ; la cible principale de cette intégration est la Gamma 601. Consultez le [guide de compilation](docs/build.md) pour les détails.
 
-Avec Node.js 22+ :
+## Tester visuellement AxeOS sans carte
+
+Avec **Node.js 22** et npm :
 
 ```bash
 cd web/axeos
@@ -44,31 +63,62 @@ npm run generate:api
 npm start
 ```
 
-Ouvrir http://localhost:4200 : mode mock officiel, données fictives, sans matériel. Les écrans, styles, polices et icônes n’ont pas été refaits.
+Ouvrez **http://localhost:4200**. Cet aperçu utilise les données fictives du mode mock officiel et ne mine pas.
 
-Depuis la racine, `python3 scripts/build-axeos.py` reconstruit l’application de production **et ses ressources embarquées**. `--demo` produit uniquement un aperçu mock et conserve les ressources de production intactes.
+## Reconstruire l’interface embarquée
 
-## Vérifications et ZIP
+Depuis la racine du dépôt, avec Python 3.11+ et les dépendances npm installées :
+
+```bash
+python3 scripts/build-axeos.py
+python3 scripts/check-axeos.py
+```
+
+La compilation de production met à jour `firmware/web-assets/official/`. Recompilez ensuite le firmware pour embarquer ces ressources.
+
+Pour générer uniquement un aperçu statique avec des données fictives :
+
+```bash
+python3 scripts/build-axeos.py --demo
+python3 -m http.server 8080 --directory web/axeos/dist/axe-os
+```
+
+Le mode `--demo` conserve les ressources de production du firmware.
+
+## Limites actuelles
+
+OTA, OLED, NTP, scan Wi-Fi, Stratum V2, TLS, pools multiples, Swarm et PID de ventilation personnalisable ne sont pas implémentés. La présence d’un bouton dans AxeOS ne signifie pas que la fonction correspondante est disponible dans ce firmware.
+
+Certaines mesures sont indisponibles et utilisent des valeurs de remplacement compatibles avec l’interface officielle. Les détails, les fonctions prises en charge et les essais matériels restants figurent dans [docs/status.md](docs/status.md).
+
+## Organisation
+
+```text
+firmware/             Firmware ESP32-S3 et ressources AxeOS embarquées
+crates/               Minage, alimentation Gamma et adaptateur API
+web/axeos/            Sources officielles de l’interface Angular
+web/openapi.yaml      Contrat API d’ESP-Miner
+vendor/bm13xx-rs/     Pilotes ASIC
+scripts/              Compilation, vérification et création des archives
+docs/                 Installation, API, limites et provenance
+.github/workflows/    Vérifications Rust et compilation d’AxeOS
+```
+
+## Vérifications
+
+Depuis la racine :
 
 ```bash
 cargo test --locked
 cargo clippy --locked --all-targets --all-features -- -D warnings
+cargo fmt --all -- --check
 python3 scripts/check-axeos.py
-python3 scripts/package-repo.py ../esp-miner-rs-axeos.zip
 ```
 
-Le ZIP contient les sources et les ressources de production, sans caches ni dépendances téléchargées. `SOURCE-MANIFEST.json` permet de vérifier son contenu.
+Voir [les vérifications effectuées](docs/validation.md) et [le fonctionnement de l’API](docs/axeos-api.md).
 
-## Mettre à jour votre dépôt GitHub
+## Licences et provenance
 
-Depuis le nouveau ZIP extrait dans un dossier neuf :
+Le code Rust conserve ses licences [MIT](LICENSE-MIT) et [Apache-2.0](LICENSE-APACHE). L’interface AxeOS conserve la [licence d’ESP-Miner](web/LICENSE-ESP-Miner), ainsi que les notices de ses dépendances.
 
-```bash
-python3 scripts/prepare-github.py /home/esp-miner-rs-github
-```
-
-Ce script vérifie le manifeste, prépare un commit dans une nouvelle copie et affiche la commande d’envoi. Votre dossier existant reste intact. Ne pas utiliser `sudo` avec Git. Voir [le guide](docs/build.md).
-
-## Licences
-
-Le code Rust conserve ses licences MIT/Apache-2.0. AxeOS conserve la licence d’ESP-Miner dans [web/LICENSE-ESP-Miner](web/LICENSE-ESP-Miner). Les ressources de production embarquent cette licence et les notices des dépendances tierces. Les sources nécessaires à leur reconstruction sont incluses. Voir [la provenance](docs/upstream.json).
+Les sources et leur révision d’origine sont indiquées dans [docs/upstream.json](docs/upstream.json).
