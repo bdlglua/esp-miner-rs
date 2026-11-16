@@ -5,7 +5,7 @@ ESP-Miner-rs is bitcoin miner firmware designed to run on the ESP32-S3 of variou
 
 - [BitaxeMax] with 1 Bitmain ASIC BM1397
 - [BitaxeUltra] with 1 Bitmain ASIC BM1366
-- [BitaxeGamma] 601 with 1 Bitmain ASIC BM1370
+- [BitaxeGamma601] with 1 Bitmain ASIC BM1370
 
 and more to come.
 
