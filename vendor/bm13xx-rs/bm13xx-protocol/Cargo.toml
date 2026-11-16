@@ -1,0 +1,36 @@
+[package]
+categories = ["embedded", "no-std"]
+edition = "2021"
+name = "bm13xx-protocol"
+rust-version = "1.87.0"
+version = "0.3.0"
+
+[dependencies]
+crc = { workspace = true }
+defmt = { workspace = true, optional = true }
+derive_more = { workspace = true, features = ["from"] }
+heapless = { workspace = true }
+log = { workspace = true, optional = true }
+
+[features]
+defmt = ["dep:defmt", "heapless/defmt"]
+
+[dev-dependencies]
+env_logger = "0.11"
+serialport = { version = "4.10", default-features = false }
+
+[[example]]
+name = "reg_probe"
+path = "examples/reg_probe.rs"
+
+[[example]]
+name = "core_reg_probe"
+path = "examples/core_reg_probe.rs"
+
+[[example]]
+name = "version_rolling"
+path = "examples/version_rolling.rs"
+
+[[example]]
+name = "chain_enum"
+path = "examples/chain_enum.rs"

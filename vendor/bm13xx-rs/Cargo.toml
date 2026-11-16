@@ -1,0 +1,21 @@
+[workspace]
+resolver = "2"
+members = [
+  "bm1366",
+  "bm1370",
+  "bm1397",
+  "bm13xx-asic",
+  "bm13xx-chain",
+  "bm13xx-protocol",
+]
+
+[workspace.dependencies]
+crc = "3.4"
+defmt = { version = "1.2" }
+derive_more = { version = "2.1", default-features = false }
+embedded-hal = "1.0"
+embedded-hal-async = "1.0"
+embedded-io-async = "0.7"
+fugit = "0.6"
+heapless = "0.9"
+log = "0.4"
