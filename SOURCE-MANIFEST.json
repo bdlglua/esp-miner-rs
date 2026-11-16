@@ -158,7 +158,7 @@
   "web/axeos/karma.conf.js": "73a2eb2286f13db21132757b0206b1f9768eece64e0ebc673d727a8c5ace80c9",
   "web/axeos/ng-openapi-gen.json": "4735e35fbe8bf35e2b7db2abef3b490d053ff38208fda1a44c722ddb237a1c20",
   "web/axeos/only-gzip.js": "d6cc6cd1f5b71e99e8fcc3c19a80f3a8aa19f94ea3d185c3ada38b15f75601da",
-  "web/axeos/package-lock.json": "bee5f412d274332a0a6bdaa5b3feeba3eca727ac807ae6ebfd19d3a3c9d2968d",
+  "web/axeos/package-lock.json": "bfb664f47700f57f59e5227bbe58dd8461348f63b821b3abd89aa3eb849b143a",
   "web/axeos/package.json": "4b2119fc9739552d0924f313ac1b66c6fb34bf5d8e4b569bb69937a7f9eb098e",
   "web/axeos/proxy.conf.js": "719e55e07533670e90b971eaa77f8f76083a4e08374cd31f00de9fdd93ae86b6",
   "web/axeos/src/app/app.component.html": "96c00b681caa3db33c4e28aa54960ae79cb815ac7df1414748cd4fdd2dce2f1f",
