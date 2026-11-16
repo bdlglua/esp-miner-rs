@@ -1,23 +1,23 @@
 {
-  "axeos_web.js.gz": {
-    "bytes": 4810,
-    "sha256": "11aef67bee9b9247f11c6859a3446ede7ff9c1475bfbe09ccf7c2601dafc388e"
-  },
-  "axeos_web_bg.wasm.gz": {
-    "bytes": 65387,
-    "sha256": "53d69d9209b5e26fc7e152dc931ac1eab73a39e0c9eb963145db0ffc91cfd522"
+  "index.html": {
+    "bytes": 620,
+    "sha256": "af36e7cad4479ce03cd36fbcb6c3254734cfe35791ba2d9e649418578019d5e6"
   },
   "boot.js": {
     "bytes": 426,
     "sha256": "8377e0306490006ec42e2118cb3d0e9ba7352bcefd427f27a9e3720b78670277"
   },
-  "index.html": {
-    "bytes": 620,
-    "sha256": "af36e7cad4479ce03cd36fbcb6c3254734cfe35791ba2d9e649418578019d5e6"
-  },
   "style.css.gz": {
-    "bytes": 2891,
-    "sha256": "e40b62002f19a1cffce8c1630f62715eb72b1dc48b04a3a95d6de0a4d48cb879"
+    "bytes": 2934,
+    "sha256": "2ff68354f8de6d2e82efba1bb957bcd16dad9e863ad225d0dd11a68eda588408"
+  },
+  "axeos_web.js.gz": {
+    "bytes": 4810,
+    "sha256": "11aef67bee9b9247f11c6859a3446ede7ff9c1475bfbe09ccf7c2601dafc388e"
+  },
+  "axeos_web_bg.wasm.gz": {
+    "bytes": 65385,
+    "sha256": "8a6f04395d30c6bd69ce5da4f56bd6e15703ae7eb8c70580db2823d18d1c020e"
   },
   "wasm-bindgen": "0.2.130"
 }

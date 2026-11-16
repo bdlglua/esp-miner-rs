@@ -1,0 +1,15 @@
+{
+  "axeos": {
+    "repository": "https://github.com/bitaxeorg/ESP-Miner",
+    "revision": "e3cfbb3b124585cf5e45a4d4842422cccee69b72",
+    "source": "main/http_server/axe-os",
+    "license": "GPL-3.0",
+    "note": "UI sources unchanged; node_modules, generated API clients, IDE files and build outputs omitted"
+  },
+  "bm13xx": {
+    "source_archive": "bm13xx-rs-main.zip",
+    "license": "MIT OR Apache-2.0",
+    "note": "Rust source retained; dependency CI and IDE metadata omitted",
+    "sha256": "746318917fa1bcead055d50c6ff291f1cda98516affe8bc444a1c6bf13b3bd7d"
+  }
+}

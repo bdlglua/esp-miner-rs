@@ -1,0 +1,89 @@
+name: Continuous Integration
+
+on:
+  push:
+    paths-ignore:
+      - "**/README.md"
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  WIFI_SSID: TestSSID
+  WIFI_PASSWORD: TestPASSWORD
+
+jobs:
+  firmware-checks:
+    name: Firmware Checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: firmware
+    strategy:
+      fail-fast: false
+      matrix:
+        action:
+          - command: build
+            args: --release --features=bitaxe-max
+          - command: build
+            args: --release --features=bitaxe-ultra
+          - command: build
+            args: --release --features=bitaxe-gamma
+          - command: fmt
+            args: --all -- --check --color always
+          - command: clippy
+            args: --features=bitaxe-max --workspace -- -D warnings
+          - command: clippy
+            args: --features=bitaxe-ultra --workspace -- -D warnings
+          - command: clippy
+            args: --features=bitaxe-gamma --workspace -- -D warnings
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Setup Rust
+        uses: esp-rs/xtensa-toolchain@v1.7.0
+        with:
+          default: true
+          buildtargets: esp32s3
+          ldproxy: false
+      - name: Enable caching
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: firmware
+      - name: Run command
+        run: cargo ${{ matrix.action.command }} ${{ matrix.action.args }}
+
+  host-checks:
+    name: Host Checks (mining, power, AxeOS API)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - name: Enable caching
+        uses: Swatinem/rust-cache@v2
+      - name: Format
+        run: cargo fmt --all -- --check --color always
+      - name: Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: Test
+        run: cargo test
+
+
+  embedded-web-checks:
+    name: Internal Rust client
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: web/embedded-rust
+      - run: cargo test --locked --manifest-path web/embedded-rust/Cargo.toml --all-features
+      - run: cargo check --locked --manifest-path web/embedded-rust/Cargo.toml --target wasm32-unknown-unknown

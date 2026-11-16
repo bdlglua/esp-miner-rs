@@ -1,0 +1,21 @@
+name: AxeOS official
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/axeos/package-lock.json
+      - run: npm ci
+        working-directory: web/axeos
+      - name: Build official UI with mock data
+        run: python scripts/build-axeos.py --demo
+      - name: Build official production UI
+        run: python scripts/build-axeos.py

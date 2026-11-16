@@ -1,0 +1,22 @@
+[package]
+name = "gamma-power"
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "MIT OR Apache-2.0"
+description = "TPS546D24A power control for Bitaxe Gamma 601"
+
+[dependencies]
+embedded-hal-async = "1.0"
+
+[dev-dependencies]
+embedded-hal-mock = { version = "0.11", features = ["embedded-hal-async"] }
+futures = { version = "0.3", features = ["executor"] }
+bm1370 = { path = "../../vendor/bm13xx-rs/bm1370" }
+bm13xx-asic = { path = "../../vendor/bm13xx-rs/bm13xx-asic" }
+bm13xx-chain = { path = "../../vendor/bm13xx-rs/bm13xx-chain" }
+bm13xx-protocol = { path = "../../vendor/bm13xx-rs/bm13xx-protocol" }
+embedded-hal = "1.0"
+embedded-io = "0.7"
+embedded-io-async = "0.7"
+fugit = "0.6"

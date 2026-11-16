@@ -1,17 +1,16 @@
 set export
 
-WIFI_SSID := "my_ssid"
-WIFI_PASSWORD := "my_password"
-
-build b:
-  cd firmware && cargo build --release --features=bitaxe-$b
-
-run b:
-  cd firmware && cargo run --release --features=bitaxe-$b
+build board="gamma":
+  cd firmware && cargo build --locked --release --features=bitaxe-{{board}}
 
 test:
-  cargo test
+  cargo test --locked
 
-# Requires wasm-bindgen-cli; prebuilt web assets are already included.
 web:
-  python scripts/build-web.py
+  python scripts/build-axeos.py
+
+web-demo:
+  python scripts/build-axeos.py --demo
+
+embedded-web:
+  python scripts/build-embedded-web.py
